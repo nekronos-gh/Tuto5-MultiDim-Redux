@@ -1,78 +1,49 @@
-import './Scatterplot.css'
-import { useEffect, useRef } from 'react';
-import {useSelector, useDispatch} from 'react-redux'
+import React, { useEffect, useRef } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import ScatterplotD3 from "./ScatterplotD3";
+import "./ScatterplotD3.css";
 
-import ScatterplotD3 from './Scatterplot-d3';
+function ScatterplotContainer() {
+  const dataState = useSelector((state) => state.dataSet);
+  const interactionState = useSelector((state) => state.itemInteraction);
+  const dispatch = useDispatch();
 
-// TODO: import action methods from reducers
+  const containerRef = useRef(null);
+  const d3InstanceRef = useRef(null);
 
-function ScatterplotContainer({xAttributeName, yAttributeName}){
-    const visData = useSelector(state =>state.dataSet)
-    const dispatch = useDispatch();
-
-    // every time the component re-render
-    useEffect(()=>{
-        console.log("ScatterplotContainer useEffect (called each time matrix re-renders)");
-    }); // if no second parameter, useEffect is called at each re-render
-
-    const divContainerRef=useRef(null);
-    const scatterplotD3Ref = useRef(null)
-
-    const getChartSize = function(){
-        // fixed size
-        // return {width:900, height:900};
-        // getting size from parent item
-        let width;// = 800;
-        let height;// = 100;
-        if(divContainerRef.current!==undefined){
-            width=divContainerRef.current.offsetWidth;
-            // width = '100%';
-            height=divContainerRef.current.offsetHeight;
-            // height = '100%';
-        }
-        return {width:width,height:height};
+  // Initialize the Scatterplot
+  useEffect(() => {
+    if (
+      dataState &&
+      dataState.length > 0 &&
+      containerRef.current &&
+      !d3InstanceRef.current
+    ) {
+      d3InstanceRef.current = new ScatterplotD3(
+        containerRef.current,
+        dataState,
+        dispatch,
+      );
     }
+  }, [dataState, dispatch]);
 
-    // did mount called once the component did mount
-    useEffect(()=>{
-        console.log("ScatterplotContainer useEffect [] called once the component did mount");
-        const scatterplotD3 = new ScatterplotD3(divContainerRef.current);
-        scatterplotD3.create({size:getChartSize()});
-        scatterplotD3Ref.current = scatterplotD3;
-        return ()=>{
-            // did unmout, the return function is called once the component did unmount (removed for the screen)
-            console.log("ScatterplotContainer useEffect [] return function, called when the component did unmount...");
-            const scatterplotD3 = scatterplotD3Ref.current;
-            scatterplotD3.clear()
-        }
-    },[]);// if empty array, useEffect is called after the component did mount (has been created)
+  // Update when there is an interaction
+  useEffect(() => {
+    if (d3InstanceRef.current) {
+      d3InstanceRef.current.update(interactionState);
+    }
+  }, [interactionState]);
 
-    // did update, called each time dependencies change, dispatch remain stable over component cycles
-    useEffect(()=>{
-        console.log("ScatterplotContainer useEffect with dependency [scatterplotData, xAttribute, yAttribute, scatterplotControllerMethods], called each time scatterplotData changes...");
+  // Render again when ther is a change in window size
+  useEffect(() => {
+    const handleResize = () => {
+      if (d3InstanceRef.current) d3InstanceRef.current.render();
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-        const handleOnClick = function(itemData){
-        }
-        const handleOnMouseEnter = function(itemData){
-        }
-        const handleOnMouseLeave = function(){
-        }
-
-        const controllerMethods={
-            handleOnClick,
-            handleOnMouseEnter,
-            handleOnMouseLeave
-        }
-
-        // get the current instance of scatterplotD3 from the Ref...
-        // call renderScatterplot of ScatterplotD3...;
-    },[visData,dispatch]);// if dependencies, useEffect is called after each data update, in our case only visData changes.
-
-    return(
-        <div ref={divContainerRef} className="scatterplotDivContainer col">
-
-        </div>
-    )
+  return <div ref={containerRef} className="visualization-container" />;
 }
 
 export default ScatterplotContainer;

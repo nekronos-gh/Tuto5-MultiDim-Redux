@@ -1,20 +1,27 @@
-import './App.css';
-import { useEffect} from 'react';
+import React, { useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { getDataSet } from "./redux/DataSetSlice";
+import ScatterplotContainer from "./components/scatterplot/ScatterplotContainer";
+import HierarchyContainer from "./components/hierarchy/HierarchyContainer";
+import "./App.css";
 
-// here import other dependencies
-
-// a component is a piece of code which render a part of the user interface
 function App() {
-  // every time the component re-render
-  useEffect(()=>{
-      console.log("App useEffect (called each time App re-renders)");
-  }); // if no second parameter, useEffect is called at each re-render
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    dispatch(getDataSet());
+  }, [dispatch]);
 
   return (
     <div className="App">
-        <div id={"MultiviewContainer"} className={"row"}>
-          
+      <header>
+        <h1>Where should I live in the US?</h1>
+      </header>
+      <div className="dashboard">
+        <div className="panel scatterplot-panel">
+          <ScatterplotContainer />
         </div>
+      </div>
     </div>
   );
 }
