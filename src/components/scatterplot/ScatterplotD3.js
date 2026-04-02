@@ -1,4 +1,9 @@
 import * as d3 from "d3";
+import {
+  setSelectedCommunities,
+  setHoveredCommunity,
+  setHighlightedState,
+} from "../../redux/ItemInteractionSlice";
 
 export default class ScatterplotD3 {
   constructor(container, data, dispatch) {
@@ -42,7 +47,7 @@ export default class ScatterplotD3 {
       .attr("class", "axis-label")
       .attr("text-anchor", "middle")
       .attr("transform", "rotate(-90)")
-      .text("Violent Crimes Per Pop (normalized 0–1)");
+      .text("Violent Crimes Per Population (normalized 0–1)");
 
     // Set color gradient depending on ammount of crime
     this.colorScale = d3.scaleSequential(d3.interpolateRdYlGn);
@@ -59,12 +64,22 @@ export default class ScatterplotD3 {
     );
     this.stateCrimeMap = stateAverages;
 
+    // We have 3 actions per node
     // Hover -> Show tooltip
     this.tooltip = d3
       .select("body")
       .append("div")
       .attr("class", "d3-tooltip")
       .style("opacity", 0);
+
+    // Select subset -> brush
+    this.brush = d3
+      .brush()
+      .on("start brush end", (event) => this.brushed(event));
+    this.brushGroup = this.g.append("g").attr("class", "brush");
+
+    // Click -> Create hull on the same state
+    this.hullGroup = this.g.append("g").attr("class", "hull-group");
 
     this.render();
   }
@@ -119,11 +134,129 @@ export default class ScatterplotD3 {
       .attr("fill", (d) => this.colorScale(d.ViolentCrimesPerPop))
       .attr("opacity", 0.6)
       .on("mouseenter", (event, d) => {
+        this.dispatch(setHoveredCommunity(d.id));
         this.showTooltip(event, d);
       })
       .on("mouseleave", () => {
+        this.dispatch(setHoveredCommunity(null));
         this.hideTooltip();
+      })
+      .on("click", (event, d) => {
+        this.dispatch(setHighlightedState(d.state));
       });
+
+    this.brush.extent([
+      [0, 0],
+      [this.width, this.height],
+    ]);
+    this.brushGroup.call(this.brush);
+  }
+
+  brushed(event) {
+    if (!event.selection) {
+      // On click, clear all
+      if (event.type === "end") {
+        this.dispatch(setSelectedCommunities([]));
+        this.dispatch(setHighlightedState(null));
+      }
+      return;
+    }
+
+    // Append all dots within the limits
+    const [[x0, y0], [x1, y1]] = event.selection;
+    const selected = this.data
+      .filter((d) => {
+        const x = this.xScale(d.medIncome);
+        const y = this.yScale(d.ViolentCrimesPerPop);
+        return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+      })
+      .map((d) => d.id);
+    this.dispatch(setSelectedCommunities(selected));
+  }
+
+  update(state) {
+    const { selectedCommunities, highlightedState, hoveredCommunity } = state;
+
+    // Update Hulls
+    this.hullGroup.selectAll("*").remove();
+    if (highlightedState) {
+      // Get all the points from teh selected state
+      const statePoints = this.data
+        .filter((d) => d.state === highlightedState)
+        .map((d) => [
+          this.xScale(d.medIncome),
+          this.yScale(d.ViolentCrimesPerPop),
+        ]);
+
+      if (statePoints.length >= 3) {
+        const hull = d3.polygonHull(statePoints);
+        if (hull) {
+          const avgCrime = this.stateCrimeMap.get(highlightedState);
+          this.hullGroup
+            .append("path")
+            .datum(hull)
+            .attr("d", (d) => `M${d.join("L")}Z`)
+            .attr("fill", this.colorScale(avgCrime))
+            .attr("stroke", this.colorScale(avgCrime))
+            .attr("stroke-width", 2)
+            .attr("opacity", 0.4)
+            .style("pointer-events", "none");
+        }
+      }
+    }
+
+    // Update all the dots
+    // 3 Types of update: hover, click, and brush
+    // Compute dot state once per dot, reuse across attrs
+    const getDotState = (d) => {
+      if (d.id === hoveredCommunity) return "hovered";
+      if (selectedCommunities.includes(d.id)) return "selected";
+      if (highlightedState && d.state === highlightedState)
+        return "highlighted";
+      if (selectedCommunities.length > 0 || highlightedState) return "dimmed";
+      return "default";
+    };
+
+    this.g
+      .selectAll(".dot")
+      .transition()
+      .duration(200)
+      .attr("stroke", (d) => {
+        const s = getDotState(d);
+        if (s === "hovered") return "#fff";
+        if (s === "highlighted") return "#1a1d27f2";
+        if (s === "selected") return "#1a1d27f2";
+        return "none";
+      })
+      .attr("stroke-width", (d) => {
+        const s = getDotState(d);
+        if (s === "hovered") return 2;
+        if (s === "highlighted") return 2;
+        if (s === "selected") return 2;
+        return 0.5;
+      })
+      .attr("opacity", (d) => {
+        const s = getDotState(d);
+        if (s === "hovered") return 1;
+        if (s === "highlighted") return 1;
+        if (s === "selected") return 1;
+        if (s === "dimmed") return 0.2;
+        return 0.6;
+      })
+      .attr("r", (d) => {
+        const s = getDotState(d);
+        const base = this.sizeScale(d.population);
+        if (s === "hovered") return base + 4;
+        if (s === "selected") return base + 2;
+        if (s === "highlighted") return base + 2;
+        return base;
+      });
+
+    // Raise highlighted dots to the top after
+    this.g
+      .selectAll(".dot")
+      .filter((d) => highlightedState && d.state === highlightedState)
+      .raise();
   }
 
   showTooltip(event, d) {
@@ -138,8 +271,9 @@ export default class ScatterplotD3 {
       d.medIncome > 0.6 ? "High" : d.medIncome > 0.3 ? "Middle" : "Low";
 
     this.tooltip.transition().duration(200).style("opacity", 0.9);
-    this.tooltip.html(
-      `
+    this.tooltip
+      .html(
+        `
       <div class="tooltip-title">${d.communityname}</div>
       <div class="tooltip-state">${d.state}</div>
       <hr/>
@@ -160,31 +294,9 @@ export default class ScatterplotD3 {
         <span>${d.population < 0.1 ? "Small" : d.population < 0.4 ? "Medium" : "Large"} (${d.population.toFixed(2)})</span>
       </div>
     `,
-    );
-
-    // Measure tooltip size after content is set
-    const tooltipNode = this.tooltip.node();
-    const tooltipHeight = tooltipNode.offsetHeight;
-    const tooltipWidth = tooltipNode.offsetWidth;
-
-    // Flip vertically if too close to bottom
-    const top =
-      event.pageY + tooltipHeight + 20 > window.innerHeight
-        ? event.pageY - tooltipHeight - 10 // above cursor
-        : event.pageY + 10; // below cursor
-
-    // Flip horizontally if too close to right edge
-    const left =
-      event.pageX + tooltipWidth + 10 > window.innerWidth
-        ? event.pageX - tooltipWidth - 10 // left of cursor
-        : event.pageX + 10; // right of cursor
-
-    this.tooltip
-      .transition()
-      .duration(200)
-      .style("opacity", 0.9)
-      .style("left", left + "px")
-      .style("top", top + "px");
+      )
+      .style("left", event.pageX + 10 + "px")
+      .style("top", event.pageY - 28 + "px");
   }
 
   hideTooltip() {
