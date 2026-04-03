@@ -1,6 +1,55 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import Papa from "papaparse";
 
+const STATE_TO_CODE = {
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  "Washington DC": "DC",
+  Florida: "FL",
+  Georgia: "GA",
+  Idaho: "ID",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY",
+};
+
 const FIPS_TO_STATE = {
   1: "Alabama",
   2: "Alaska",
@@ -75,18 +124,26 @@ export const getDataSet = createAsyncThunk(
             item.population !== "?" &&
             item.population != null,
         )
-        .map((item, i) => ({
-          ...item,
-          id: i,
-          state: FIPS_TO_STATE[item.state] || `State ${item.state}`,
-          communityname: item.communityname
-            .replace(
-              /(city|township|borough|village|division|district|town|valle)$/i,
-              "",
-            )
-            .replace(/([a-z])([A-Z])/g, "$1 $2")
-            .trim(),
-        }));
+        .map((item, i) => {
+          const stateName = FIPS_TO_STATE[item.state] || `State ${item.state}`;
+          const stateCode = STATE_TO_CODE[stateName] || "??";
+          return {
+            ...item,
+            id: i,
+            state: stateName,
+            stateCode: stateCode,
+            communityname:
+              item.communityname
+                .replace(
+                  /(city|township|borough|village|division|district|town|valle)$/i,
+                  "",
+                )
+                .replace(/([a-z])([A-Z])/g, "$1 $2")
+                .trim() +
+              ", " +
+              stateCode,
+          };
+        });
       // when a result is returned, extraReducer below is triggered with the case setSeoulBikeData.fulfilled
     } catch (error) {
       console.error("error catched in asyncThunk" + error);

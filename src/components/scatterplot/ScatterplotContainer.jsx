@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import ScatterplotD3 from "./ScatterplotD3";
 import "./ScatterplotD3.css";
@@ -43,7 +43,27 @@ function ScatterplotContainer() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  return <div ref={containerRef} className="visualization-container" />;
+  // Get the selected State
+  const highlightedState = useSelector(
+    (state) => state.itemInteraction.highlightedState,
+  );
+
+  // Find the corresponding state code
+  const stateCode = useMemo(() => {
+    if (!highlightedState) return null;
+    return dataState.find((d) => d.state === highlightedState)?.stateCode;
+  }, [highlightedState, dataState]);
+
+  return (
+    <div ref={containerRef} className="visualization-container">
+      {highlightedState && (
+        <div className="state-badge">
+          <span className="state-badge__code">{stateCode}</span>
+          <span className="state-badge__name">{highlightedState}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default ScatterplotContainer;

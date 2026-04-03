@@ -4,6 +4,7 @@ import {
   setHoveredCommunity,
   setHighlightedState,
 } from "../../redux/ItemInteractionSlice";
+import { Tooltip } from "../../utils/Tooltip";
 
 export default class ScatterplotD3 {
   constructor(container, data, dispatch) {
@@ -35,7 +36,6 @@ export default class ScatterplotD3 {
     this.xLabel = this.g
       .append("text")
       .attr("class", "axis-label")
-      .attr("text-anchor", "middle")
       .text("Median Income (normalized 0–1)");
 
     // Set Y axis
@@ -45,7 +45,6 @@ export default class ScatterplotD3 {
     this.yLabel = this.g
       .append("text")
       .attr("class", "axis-label")
-      .attr("text-anchor", "middle")
       .attr("transform", "rotate(-90)")
       .text("Violent Crimes Per Population (normalized 0–1)");
 
@@ -66,11 +65,7 @@ export default class ScatterplotD3 {
 
     // We have 3 actions per node
     // Hover -> Show tooltip
-    this.tooltip = d3
-      .select("body")
-      .append("div")
-      .attr("class", "d3-tooltip")
-      .style("opacity", 0);
+    this.tooltip = new Tooltip();
 
     // Select subset -> brush
     this.brush = d3
@@ -135,11 +130,11 @@ export default class ScatterplotD3 {
       .attr("opacity", 0.6)
       .on("mouseenter", (event, d) => {
         this.dispatch(setHoveredCommunity(d.id));
-        this.showTooltip(event, d);
+        this.tooltip.show(event, d);
       })
       .on("mouseleave", () => {
         this.dispatch(setHoveredCommunity(null));
-        this.hideTooltip();
+        this.tooltip.hide();
       })
       .on("click", (event, d) => {
         this.dispatch(setHighlightedState(d.state));
@@ -197,10 +192,7 @@ export default class ScatterplotD3 {
             .datum(hull)
             .attr("d", (d) => `M${d.join("L")}Z`)
             .attr("fill", this.colorScale(avgCrime))
-            .attr("stroke", this.colorScale(avgCrime))
-            .attr("stroke-width", 2)
-            .attr("opacity", 0.4)
-            .style("pointer-events", "none");
+            .attr("stroke", this.colorScale(avgCrime));
         }
       }
     }
@@ -224,8 +216,8 @@ export default class ScatterplotD3 {
       .attr("stroke", (d) => {
         const s = getDotState(d);
         if (s === "hovered") return "#fff";
-        if (s === "highlighted") return "#1a1d27f2";
-        if (s === "selected") return "#1a1d27f2";
+        if (s === "highlighted") return "#4ecca3";
+        if (s === "selected") return "#4ecca3";
         return "none";
       })
       .attr("stroke-width", (d) => {
@@ -257,49 +249,5 @@ export default class ScatterplotD3 {
       .selectAll(".dot")
       .filter((d) => highlightedState && d.state === highlightedState)
       .raise();
-  }
-
-  showTooltip(event, d) {
-    const crimeLevel =
-      d.ViolentCrimesPerPop < 0.2
-        ? "Low"
-        : d.ViolentCrimesPerPop < 0.5
-          ? "Moderate"
-          : "High";
-
-    const incomeLevel =
-      d.medIncome > 0.6 ? "High" : d.medIncome > 0.3 ? "Middle" : "Low";
-
-    this.tooltip.transition().duration(200).style("opacity", 0.9);
-    this.tooltip
-      .html(
-        `
-      <div class="tooltip-title">${d.communityname}</div>
-      <div class="tooltip-state">${d.state}</div>
-      <hr/>
-      <div class="tooltip-row">
-        <span class="tooltip-label">Crime Rate</span>
-        <span>${crimeLevel} (${d.ViolentCrimesPerPop.toFixed(2)})</span>
-      </div>
-      <div class="tooltip-row">
-        <span class="tooltip-label">Income</span>
-        <span>${incomeLevel} (${d.medIncome.toFixed(2)})</span>
-      </div>
-      <div class="tooltip-row">
-        <span class="tooltip-label">Unemployment</span>
-        <span>${(d.PctUnemployed * 100).toFixed(1)}%</span>
-      </div>
-      <div class="tooltip-row">
-        <span class="tooltip-label">Population</span>
-        <span>${d.population < 0.1 ? "Small" : d.population < 0.4 ? "Medium" : "Large"} (${d.population.toFixed(2)})</span>
-      </div>
-    `,
-      )
-      .style("left", event.pageX + 10 + "px")
-      .style("top", event.pageY - 28 + "px");
-  }
-
-  hideTooltip() {
-    this.tooltip.transition().duration(500).style("opacity", 0);
   }
 }

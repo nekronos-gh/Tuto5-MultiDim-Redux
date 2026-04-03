@@ -1,0 +1,65 @@
+.controls {
+  position: relative;
+  display: flex;
+  margin-left: 10px;
+  margin-top: 10px;
+  gap: 5px;
+  z-index: 10;
+}
+
+button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-color);
+}
+
+button.active {
+  background: var(--accent-color);
+  color: #000;
+  border-color: var(--accent-color);
+}
+
+.pulse {
+  animation: highlight-pulse 2s infinite;
+}
+
+.node-leaf {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.node-internal {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.node-internal text {
+  font-size: 10px;
+  fill: #fff;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    stroke-width: 2;
+    stroke: rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    stroke-width: 3;
+    stroke: #4ecca4;
+  }
+  100% {
+    stroke-width: 2;
+    stroke: rgba(255, 255, 255, 0.1);
+  }
+}

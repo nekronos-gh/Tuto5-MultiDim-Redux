@@ -8,6 +8,7 @@ import "./App.css";
 function App() {
   const dispatch = useDispatch();
 
+  // Load dataset
   useEffect(() => {
     dispatch(getDataSet());
   }, [dispatch]);
@@ -20,6 +21,9 @@ function App() {
       <div className="dashboard">
         <div className="panel scatterplot-panel">
           <ScatterplotContainer />
+        </div>
+        <div className="panel hierarchy-panel">
+          <HierarchyContainer />
         </div>
       </div>
     </div>

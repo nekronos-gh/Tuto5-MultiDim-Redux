@@ -1,0 +1,32 @@
+.d3-tooltip {
+  position: absolute;
+  background: rgba(26, 29, 39, 0.95);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  pointer-events: none;
+  font-size: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  z-index: 1000;
+}
+
+.tooltip-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #4ecca3;
+}
+.tooltip-state {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 6px;
+}
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 3px 0;
+}
+.tooltip-label {
+  color: rgba(255, 255, 255, 0.5);
+}
