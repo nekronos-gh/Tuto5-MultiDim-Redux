@@ -1,0 +1,176 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyvrb}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\title{Summary Generative AI Usage}
+\author{Eduardo Rodríguez Sánchez}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+This document contains a record of the technical prompts and AI-assisted refinements used during the development of the Communities and Crime visualization project.
+
+\section{Layout overflow in the visualization container}
+\subsection*{Prompt}
+The visualization container overflows downward in the window. My current JSX structure is:
+\begin{Verbatim}[fontsize=\small]
+<div className="visualization-container">
+  <div className="controls">...</div>
+  <div ref={containerRef} className="visualization-container" />
+</div>
+\end{Verbatim}
+
+\subsection*{AI Answer}
+The issue is that the outer div and the inner div both have the same class, and the inner mount target is growing without constraint. 
+\begin{itemize}[leftmargin=*]
+  \item Remove the duplicate class on the outer wrapper.
+  \item Use a flex column wrapper with \texttt{height: 100\%}.
+  \item Set the D3 target to \texttt{flex: 1; min-height: 0; overflow: hidden;}. The \texttt{min-height: 0} is critical to allow flex children to shrink below their content size.
+\end{itemize}
+
+\section{SVG stacking and label visibility}
+\subsection*{Prompt}
+I tried adding a \texttt{z-index} to the state labels, but they still appear behind the circles.
+\begin{Verbatim}[fontsize=\small]
+.state-label { z-index: 2000; }
+\end{Verbatim}
+
+\subsection*{AI Answer}
+\texttt{z-index} does not work on SVG elements. SVG follows the painter's model, where the DOM order determines stacking. To ensure labels appear on top, you should render them in a separate group appended after all the circles are drawn.
+
+\section{Adding background boxes to SVG labels}
+\subsection*{Prompt}
+I want to put a semi-transparent box behind each label to make it readable over the colored circles. How do I size the box dynamically?
+
+\subsection*{AI Answer}
+You can use the \texttt{getBBox()} method to measure the rendered text and then insert a \texttt{rect} behind it:
+\begin{Verbatim}[fontsize=\small]
+const bbox = text.node().getBBox();
+const pad = { x: 8, y: 4 };
+
+labelG.insert("rect", "text")
+  .attr("x", bbox.x - pad.x)
+  .attr("y", bbox.y - pad.y)
+  .attr("width", bbox.width + pad.x * 2)
+  .attr("height", bbox.height + pad.y * 2)
+  .attr("fill", "rgba(26, 29, 39, 0.75)");
+\end{Verbatim}
+Ensure you use \texttt{.datum(d)} when creating the label groups so that subsequent interaction updates can access the bound data.
+
+\section{Refactoring shared label rendering}
+\subsection*{Prompt}
+How can I refactor the label logic so that both the treemap and the circle pack layouts use the same implementation?
+
+\subsection*{AI Answer}
+Extract a shared \texttt{renderLabels(data)} method. The only differences are the coordinate systems. You can use a conditional check on \texttt{this.currentLayout} to set the positions:
+\begin{Verbatim}[fontsize=\small]
+const x = this.currentLayout === "treemap" ? d.x0 + (d.x1 - d.x0) / 2 : d.x;
+const y = this.currentLayout === "treemap" ? d.y0 + (d.y1 - d.y0) / 2 : d.y;
+\end{Verbatim}
+This allows you to maintain one set of styling and transition logic for both layouts.
+
+\section{Enriching the dataset with state codes}
+\subsection*{Prompt}
+I have the FIPS state codes, but I want to display the two-letter abbreviations (CA, NY, etc.). How should I add this to the Redux slice?
+
+\subsection*{AI Answer}
+Create a mapping object from state names to codes and apply it inside the \texttt{.map()} function where you process the incoming CSV data:
+\begin{Verbatim}[fontsize=\small]
+const stateCode = STATE_TO_CODE[stateName] || "??";
+return { ...item, state: stateName, stateCode: stateCode };
+\end{Verbatim}
+
+\section{Grouping hierarchical data with custom properties}
+\subsection*{Prompt}
+When using \texttt{d3.groups()} to create the hierarchy, how do I attach the state code to the parent node?
+
+\subsection*{AI Answer}
+Since all items in a state group share the same code, you can grab it from the first item in the group array:
+\begin{Verbatim}[fontsize=\small]
+.groups(data, (d) => d.state)
+  .map(([state, values]) => ({
+    name: state,
+    stateCode: values[0].stateCode,
+    children: values.map((v) => ({ ...v, name: v.communityname })),
+  }));
+\end{Verbatim}
+
+\section{Centralizing interaction state logic}
+\subsection*{Prompt}
+My \texttt{update()} method is getting messy with many \texttt{if} statements for hovered, selected, and highlighted states. How can I make it more consistent?
+
+\subsection*{AI Answer}
+Create a \texttt{getNodeState(d)} helper to centralize the priority logic. This allows you to compute the state once and reuse it across stroke, fill, and opacity attributes:
+\begin{Verbatim}[fontsize=\small]
+const getNodeState = (d) => {
+  if (d.data.id === hoveredCommunity) return "hovered";
+  if (selectedCommunities.includes(d.data.id)) return "selected";
+  if (d.data.state === highlightedState) return "highlighted";
+  return "default";
+};
+\end{Verbatim}
+
+\section{Solving click event interception}
+\subsection*{Prompt}
+The click handler on the state nodes isn't working because the leaf nodes (communities) are on top. How do I fix this?
+
+\subsection*{AI Answer}
+Move the click handler to the parent \texttt{<g>} group instead of the shapes. Clicks on children will bubble up to the group. Then, use \texttt{e.stopPropagation()} on leaf-level hovers if you want to prevent them from interfering with state-level selections.
+
+\section{useMemo vs useEffect for derived state}
+\subsection*{Prompt}
+Should I use \texttt{useMemo} or \texttt{useEffect} to derive the \texttt{stateCode} for the badge in my React component?
+
+\subsection*{AI Answer}
+\texttt{useMemo} is correct here. It derives a value from existing state synchronously during render. \texttt{useEffect} would trigger an unnecessary second render cycle and extra state management.
+
+\section{Responsive sizing with CSS clamp()}
+\subsection*{Prompt}
+The floating badge doesn't adapt to different screen sizes. How can I make it responsive without multiple media queries?
+
+\subsection*{AI Answer}
+Use the \texttt{clamp()} function for fluid typography and padding. It sets a minimum, a preferred value (using viewport units), and a maximum:
+\begin{Verbatim}[fontsize=\small]
+.state-badge__code {
+  font-size: clamp(14px, 3vw, 28px);
+}
+\end{Verbatim}
+
+\section{Tooltip placement in screen quadrants}
+\subsection*{Prompt}
+How do I make the tooltip flip its position so it always stays within the screen bounds?
+
+\subsection*{AI Answer}
+Compare the cursor position against the window midpoints and adjust the offsets accordingly:
+\begin{Verbatim}[fontsize=\small]
+const isTopHalf = event.pageY < window.innerHeight / 2;
+const isLeftHalf = event.pageX < window.innerWidth / 2;
+
+this.tooltip
+  .style("top", isTopHalf ? (pageY + 10) : (pageY - height - 10))
+  .style("left", isLeftHalf ? (pageX + 10) : (pageX - width - 10));
+\end{Verbatim}
+
+\section{Scaling SVG elements from center}
+\subsection*{Prompt}
+When I try to scale a node on highlight using \texttt{transform: scale(1.15)}, it scales from the top-left origin. How do I scale from the center?
+
+\subsection*{AI Answer}
+SVG \texttt{scale()} always uses the coordinate system origin. You must translate to the center of the element, scale, and then translate back:
+\begin{Verbatim}[fontsize=\small]
+const cx = (d.x1 - d.x0) / 2;
+const cy = (d.y1 - d.y0) / 2;
+return `translate(${d.x0},${d.y0}) translate(${cx},${cy}) 
+        scale(1.15) translate(${-cx},${-cy})`;
+\end{Verbatim}
+
+\end{document}

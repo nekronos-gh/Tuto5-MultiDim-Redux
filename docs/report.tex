@@ -1,0 +1,78 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{%
+  Communities and Crime\\
+  \large Developing interactive data visualizations in React and D3j}
+\author{Eduardo Rodríguez Sánchez}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Characterization of the Problem, Data, and User Tasks}
+
+The objective of this project is to explore and analyze the "Communities and Crime" dataset, which contains multi-dimensional socio-economic and crime-related information for various communities across the United States. The central problem is understanding how factors such as median income and population density correlate with violent crime rates, and how these patterns vary geographically across different states.
+
+\bigskip
+
+The dataset includes normalized attributes (scaled between 0 and 1) for over 1,900 communities. Key variables used in this visualization include \texttt{medIncome} (Median household income, normalized between 0 and 1), \texttt{ViolentCrimesPerPop} (Violent crime rate per population, normalized between 0 and 1), \texttt{population} (Total population of the community) and \texttt{state} (Geographical grouping of communities).
+
+\bigskip
+
+The interface aims to enable users to explore, analyze, and compare patterns in the Communities and Crime dataset through coordinated visualizations and linked interactions.
+
+\section{Design Rationale}
+
+The visual design employs coordintated mutliple views, linking a scatterplot and hierarchical layout with two different arrangements. 
+\subsection{Scatterplot Design}
+The scatterplot maps \texttt{medIncome} to the X-axis and \texttt{ViolentCrimesPerPop} to the Y-axis. This choice directly addresses the task of finding correlations. Circle radius is mapped to \texttt{population}, providing context on the size of the community. A color gradient from green (low crime) to red (high crime) is used to reinforce the primary metric of interest.
+
+\subsection{Hierarchical Layouts}
+Two hierarchical layouts were implemented: \textbf{Treemaps} and \textbf{Circle Packing}.
+\begin{itemize}
+    \item \textbf{Treemaps:} These are highly space efficient and allow for clear labeling of states. The rectangular areas facilitate easier comparison of crime volumes between states. 
+    \item \textbf{Circle Packing:} This layout excels at conveying the nesting structure (States containing Communities) and is aesthetically pleasing. However, it is less space efficient than the treemap, leading to wasted "dead space" between circles and making it harder to compare exact areas.
+\end{itemize}
+
+
+The \textbf{Treemap} is the preferred hierarchical layout for this application. Its space filling nature ensures that even small communities are visible, and the alignment of rectangles makes it easier for users to scan and compare the relative crime contribution of different states.
+
+\subsection{Interactions and Patterns}
+\begin{itemize}
+    \item \textbf{Brushing:} Users can select a range of values in the scatterplot. This updates the Redux store, which in turn highlights the corresponding nodes in the hierarchy, allowing users to see the spatial and structural distribution of specific clusters.
+    \item \textbf{Convex Hull Highlighting:} Clicking on a community or state node state triggers a convex hull in the scatterplot that encompasses all communities belonging to that state. 
+    \item \textbf{Cross-View Hovering:} Hovering over any element (dot, tree node, or state path) highlights its counterpart in all other views, which helps user to maintain context during exploration.
+    \item \textbf{Tooltip Hovering}: Additionally, in order to represent some extra data about specific communities, a tooltip is implemented to give a summary of metrics of main interest (and exact numbers on those).
+\end{itemize}
+
+\section{Declaration of Generative AI Use}
+
+This work was assisted by Generative AI as follows:
+
+\begin{itemize}
+    \item \textbf{Model Used:} Gemini 3 Flash Preview, Claude 4.6 Sonnet, GPT-5.3
+    \item \textbf{AI-Generated Parts:}
+    \begin{itemize}
+        \item Drafting the LaTeX skeleton for the report.
+        \item Proposing wording for the introduction, methodology, and visualization descriptions.
+        \item Assisting with the explanation of implementation details in React, D3, and Redux.
+        \item Generating and refining code snippets for visualization components, tooltips, labels, and interaction logic.
+    \end{itemize}
+    \item \textbf{Refinement Process:}
+    \begin{itemize}
+        \item All AI-generated text, code, and structure suggestions were manually reviewed before inclusion.
+        \item Proposed content was adapted to match the actual implementation and project requirements.
+        \item The final report was written manually to ensure consistency in tone, terminology, and style.
+        \item AI assistance was used as a drafting and brainstorming aid, while final decisions, implementation, and validation were performed manually.
+    \end{itemize}
+\item \textbf{Gen-AI Prompts and Answers}: Because full logs from the embedded coding agent were difficult to retrieve, an AI-generated summary of those interactions was used instead of a complete transcript.
+\end{itemize}
+
+\end{document}
